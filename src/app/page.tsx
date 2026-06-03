@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Copy, Loader2, Send, Paperclip } from "lucide-react";
+import { ChevronDown, Copy, Loader2, Send } from "lucide-react";
 import type { FormEvent, KeyboardEvent, PointerEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -46,6 +46,7 @@ type StreamErrorEvent = {
 };
 
 type StreamEvent = StreamStartEvent | StreamChunkEvent | StreamDoneEvent | StreamErrorEvent;
+type GenerationMode = "blog" | "description";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
@@ -192,6 +193,9 @@ export default function Home() {
   const [error, setError] = useState("");
   const [handwritingIndex, setHandwritingIndex] = useState(0);
   const [streamingCardIds, setStreamingCardIds] = useState<string[]>([]);
+  const [mode, setMode] = useState<GenerationMode>("blog");
+  const [isModeOpen, setIsModeOpen] = useState(false);
+  const modeDropdownRef = useRef<HTMLDivElement>(null);
 
   const handwritingPrompt = handwritingPrompts[handwritingIndex] ?? handwritingPrompts[0];
 
@@ -201,6 +205,18 @@ export default function Home() {
     }, handwritingPromptDuration);
 
     return () => window.clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (modeDropdownRef.current && !modeDropdownRef.current.contains(event.target as Node)) {
+        setIsModeOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
   }, []);
 
   const { contextSafe } = useGSAP({ scope: shellRef });
@@ -403,7 +419,7 @@ export default function Home() {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ prompt: trimmed })
+        body: JSON.stringify({ prompt: trimmed, mode })
       });
 
       if (!response.ok) {
@@ -602,19 +618,83 @@ export default function Home() {
           />
           <div className="prompt-actions">
             <div className="prompt-actions-left">
-              <button 
-                type="button" 
-                className="action-icon-button" 
-                aria-label="Attach file"
-              >
-                <Paperclip size={16} />
-              </button>
-              <button 
-                type="button" 
-                className="model-selector"
-              >
+              <div className="relative" ref={modeDropdownRef}>
+                <button
+                  type="button"
+                  className="mode-selector-btn"
+                  onClick={() => setIsModeOpen(!isModeOpen)}
+                  aria-expanded={isModeOpen}
+                  aria-haspopup="listbox"
+                  aria-label="Output mode"
+                >
+                  <span>{mode === "blog" ? "Blog" : "Description"}</span>
+                  <ChevronDown size={14} className={`mode-selector-chevron ${isModeOpen ? "rotate" : ""}`} aria-hidden="true" />
+                </button>
+                {isModeOpen && (
+                  <div className="mode-dropdown-menu" role="listbox">
+                    <button
+                      type="button"
+                      className={`mode-dropdown-item ${mode === "blog" ? "active" : ""}`}
+                      role="option"
+                      aria-selected={mode === "blog"}
+                      onClick={() => {
+                        setMode("blog");
+                        setIsModeOpen(false);
+                      }}
+                    >
+                      <span>Blog</span>
+                      {mode === "blog" && (
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="mode-dropdown-item-check"
+                          aria-hidden="true"
+                        >
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      className={`mode-dropdown-item ${mode === "description" ? "active" : ""}`}
+                      role="option"
+                      aria-selected={mode === "description"}
+                      onClick={() => {
+                        setMode("description");
+                        setIsModeOpen(false);
+                      }}
+                    >
+                      <span>Description</span>
+                      {mode === "description" && (
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="mode-dropdown-item-check"
+                          aria-hidden="true"
+                        >
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                )}
+              </div>
+              <button type="button" className="model-selector-btn">
                 <span>glm-5</span>
-                <ChevronDown size={14} />
               </button>
             </div>
             <button 

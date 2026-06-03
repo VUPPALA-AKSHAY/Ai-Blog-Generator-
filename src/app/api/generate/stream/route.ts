@@ -2,6 +2,7 @@ import {
   chunkTextSmoothly,
   fetchGeneratedContent,
   sleep,
+  type GenerationMode,
   type StreamChunkEvent,
   type StreamDoneEvent,
   type StreamErrorEvent,
@@ -17,10 +18,12 @@ function toNdjson(payload: StreamStartEvent | StreamChunkEvent | StreamDoneEvent
 
 export async function POST(request: Request) {
   let prompt = "";
+  let mode: GenerationMode = "blog";
 
   try {
-    const body = (await request.json()) as { prompt?: string };
+    const body = (await request.json()) as { prompt?: string; mode?: GenerationMode };
     prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
+    mode = body.mode === "description" ? "description" : "blog";
   } catch {
     return Response.json({ error: "Invalid request body." }, { status: 400 });
   }
@@ -34,7 +37,7 @@ export async function POST(request: Request) {
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       try {
-        const outputs = await fetchGeneratedContent(prompt);
+        const outputs = await fetchGeneratedContent(prompt, mode);
         const cards = outputs.map((card) => ({ ...card, content: "" }));
         controller.enqueue(encoder.encode(toNdjson({ type: "start", cards })));
 

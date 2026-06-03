@@ -4,6 +4,8 @@ export type GeneratedCard = {
   content: string;
 };
 
+export type GenerationMode = "blog" | "description";
+
 export type StreamStartEvent = {
   type: "start";
   cards: GeneratedCard[];
@@ -196,14 +198,23 @@ async function fetchCerebrasContent(prompt: string): Promise<GeneratedCard[]> {
   return parseGeneratedCards(contentString, "Cerebras");
 }
 
-export async function fetchGeneratedContent(prompt: string): Promise<GeneratedCard[]> {
-  const provider = process.env.AI_PROVIDER ?? "cerebras";
-
-  if (provider === "frenix") {
-    return fetchFrenixContent(prompt);
+function buildPrompt(prompt: string, mode: GenerationMode) {
+  if (mode === "description") {
+    return `Mode: Product Description\n\nGenerate product-description-focused outputs for this input:\n${prompt}`;
   }
 
-  return fetchCerebrasContent(prompt);
+  return `Mode: Blog Content\n\nGenerate blog-focused outputs for this input:\n${prompt}`;
+}
+
+export async function fetchGeneratedContent(prompt: string, mode: GenerationMode = "blog"): Promise<GeneratedCard[]> {
+  const provider = process.env.AI_PROVIDER ?? "cerebras";
+  const finalPrompt = buildPrompt(prompt, mode);
+
+  if (provider === "frenix") {
+    return fetchFrenixContent(finalPrompt);
+  }
+
+  return fetchCerebrasContent(finalPrompt);
 }
 
 export function sleep(ms: number) {
