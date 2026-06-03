@@ -9,13 +9,10 @@ AI Content Generator is a modern web application that helps creators, marketers,
 ## Features
 -Blog idea generation
 -Product description generation
--Social media caption generation
--Marketing copy creation
--Multiple content variations per prompt
 
 ## How It Works
 Enter a topic, keyword, product, or idea.
-Submit your prompt.
+Select blog description or Submit your prompt.
 The AI analyzes your input.
 Six unique content variations are generated.
 Browse, copy, and use the content instantly.
