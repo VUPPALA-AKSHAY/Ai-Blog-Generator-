@@ -3,13 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"npm run dev:server\" \"npm run dev:next\"",
-    "dev:next": "next dev --port 3000",
-    "dev:server": "tsx watch server/index.ts",
+    "dev": "next dev --port 3000",
     "build": "next build",
-    "start": "concurrently \"npm run start:server\" \"npm run start:next\"",
-    "start:next": "next start --port 3000",
-    "start:server": "node dist/server/index.js",
+    "start": "next start --port 3000",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

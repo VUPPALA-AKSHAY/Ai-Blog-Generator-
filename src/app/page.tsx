@@ -47,7 +47,7 @@ type StreamErrorEvent = {
 
 type StreamEvent = StreamStartEvent | StreamChunkEvent | StreamDoneEvent | StreamErrorEvent;
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:4000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 const initialPrompt = "blog ideas for fitness app";
 const handwritingPrompts = [

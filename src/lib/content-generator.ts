@@ -1,70 +1,28 @@
-import cors from "cors";
-import express from "express";
-
-type GeneratedCard = {
+export type GeneratedCard = {
   id: string;
   heading: string;
   content: string;
 };
 
-type StreamStartEvent = {
+export type StreamStartEvent = {
   type: "start";
   cards: GeneratedCard[];
 };
 
-type StreamChunkEvent = {
+export type StreamChunkEvent = {
   type: "chunk";
   id: string;
   contentChunk: string;
 };
 
-type StreamDoneEvent = {
+export type StreamDoneEvent = {
   type: "done";
 };
 
-type StreamErrorEvent = {
+export type StreamErrorEvent = {
   type: "error";
   error: string;
 };
-
-const app = express();
-const port = Number(process.env.PORT ?? 4000);
-
-const allowedOrigins = [
-  "http://127.0.0.1:3000",
-  "http://localhost:3000",
-  process.env.CLIENT_ORIGIN
-].filter(Boolean) as string[];
-
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
-  }
-}));
-app.use(express.json());
-
-app.get("/api/health", (_request, response) => {
-  response.json({ ok: true });
-});
-
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function writeStreamEvent(
-  response: express.Response,
-  payload: StreamStartEvent | StreamChunkEvent | StreamDoneEvent | StreamErrorEvent
-) {
-  response.write(`${JSON.stringify(payload)}\n`);
-}
-
-const ACTIVE_PROVIDER = "cerebras";
-const FRENIX_API_KEY = "sk-frenix-232739e5f5604123a8271ebec6e806aa";
-const CEREBRAS_API_KEY = "csk-m5mk5hwmrcy8xnfc4t9jvdkv2thcm3hxk6kv84mecf5849mn";
 
 const systemPrompt = `You are an expert AI content generation assistant.
 
@@ -135,14 +93,16 @@ function parseGeneratedCards(contentString: string, providerName: string): Gener
   }
 
   const parsed = JSON.parse(cleanJson) as { outputs?: Array<{ heading?: string; content?: string }> };
+
   if (!parsed.outputs || !Array.isArray(parsed.outputs)) {
     throw new Error(`Invalid ${providerName} response format: outputs array is missing`);
   }
 
-  return parsed.outputs.map((item: any, index: number) => {
+  return parsed.outputs.map((item, index) => {
     const heading = String(item.heading || `Idea ${index + 1}`);
     const content = String(item.content || "");
     const slug = heading.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+
     return {
       id: `${index + 1}-${slug}`,
       heading,
@@ -152,16 +112,20 @@ function parseGeneratedCards(contentString: string, providerName: string): Gener
 }
 
 async function fetchFrenixContent(prompt: string): Promise<GeneratedCard[]> {
-  const model = "glm-5";
+  const apiKey = process.env.FRENIX_API_KEY;
+
+  if (!apiKey) {
+    throw new Error("Missing FRENIX_API_KEY environment variable");
+  }
 
   const response = await fetch("https://api.frenix.sh/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${FRENIX_API_KEY}`
+      Authorization: `Bearer ${apiKey}`
     },
     body: JSON.stringify({
-      model: model,
+      model: "glm-5",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: prompt }
@@ -180,6 +144,7 @@ async function fetchFrenixContent(prompt: string): Promise<GeneratedCard[]> {
     choices?: Array<{ message?: { content?: string } }>;
   };
   const contentString = result.choices?.[0]?.message?.content;
+
   if (!contentString) {
     throw new Error("Empty response from Frenix API");
   }
@@ -188,11 +153,17 @@ async function fetchFrenixContent(prompt: string): Promise<GeneratedCard[]> {
 }
 
 async function fetchCerebrasContent(prompt: string): Promise<GeneratedCard[]> {
+  const apiKey = process.env.CEREBRAS_API_KEY;
+
+  if (!apiKey) {
+    throw new Error("Missing CEREBRAS_API_KEY environment variable");
+  }
+
   const response = await fetch("https://api.cerebras.ai/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${CEREBRAS_API_KEY}`
+      Authorization: `Bearer ${apiKey}`
     },
     body: JSON.stringify({
       model: "zai-glm-4.7",
@@ -217,6 +188,7 @@ async function fetchCerebrasContent(prompt: string): Promise<GeneratedCard[]> {
     choices?: Array<{ message?: { content?: string } }>;
   };
   const contentString = result.choices?.[0]?.message?.content;
+
   if (!contentString) {
     throw new Error("Empty response from Cerebras API");
   }
@@ -224,92 +196,21 @@ async function fetchCerebrasContent(prompt: string): Promise<GeneratedCard[]> {
   return parseGeneratedCards(contentString, "Cerebras");
 }
 
-async function fetchGeneratedContent(prompt: string): Promise<GeneratedCard[]> {
-  if (ACTIVE_PROVIDER === "cerebras") {
-    return fetchCerebrasContent(prompt);
+export async function fetchGeneratedContent(prompt: string): Promise<GeneratedCard[]> {
+  const provider = process.env.AI_PROVIDER ?? "cerebras";
+
+  if (provider === "frenix") {
+    return fetchFrenixContent(prompt);
   }
 
-  return fetchFrenixContent(prompt);
+  return fetchCerebrasContent(prompt);
 }
 
-app.post("/api/generate", async (request, response) => {
-  const prompt = typeof request.body?.prompt === "string" ? request.body.prompt.trim() : "";
+export function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
-  if (!prompt) {
-    response.status(400).json({ error: "Prompt is required." });
-    return;
-  }
-
-  try {
-    const outputs = await fetchGeneratedContent(prompt);
-    response.json({ outputs });
-  } catch (error: any) {
-    console.error("Content generation error:", error);
-    response.status(500).json({ error: error.message || "Failed to generate content." });
-  }
-});
-
-app.post("/api/generate/stream", async (request, response) => {
-  const prompt = typeof request.body?.prompt === "string" ? request.body.prompt.trim() : "";
-
-  if (!prompt) {
-    response.status(400).json({ error: "Prompt is required." });
-    return;
-  }
-
-  response.setHeader("Content-Type", "application/x-ndjson; charset=utf-8");
-  response.setHeader("Cache-Control", "no-cache, no-transform");
-  response.setHeader("Connection", "keep-alive");
-  response.flushHeaders?.();
-
-  try {
-    const outputs = await fetchGeneratedContent(prompt);
-    const cards = outputs.map((card) => ({ ...card, content: "" }));
-    writeStreamEvent(response, { type: "start", cards });
-
-    const queues = outputs.map((card) => ({
-      id: card.id,
-      chunks: chunkTextSmoothly(card.content)
-    }));
-
-    let hasRemaining = true;
-
-    while (hasRemaining) {
-      hasRemaining = false;
-
-      for (const queue of queues) {
-        const nextChunk = queue.chunks.shift();
-
-        if (!nextChunk) {
-          continue;
-        }
-
-        hasRemaining = true;
-        writeStreamEvent(response, {
-          type: "chunk",
-          id: queue.id,
-          contentChunk: nextChunk
-        });
-      }
-
-      if (hasRemaining) {
-        await sleep(137);
-      }
-    }
-
-    writeStreamEvent(response, { type: "done" });
-    response.end();
-  } catch (error: any) {
-    console.error("Streaming content generation error:", error);
-    writeStreamEvent(response, {
-      type: "error",
-      error: error.message || "Failed to generate content."
-    });
-    response.end();
-  }
-});
-
-function chunkTextSmoothly(content: string) {
+export function chunkTextSmoothly(content: string) {
   const chunks: string[] = [];
   let index = 0;
 
@@ -320,13 +221,7 @@ function chunkTextSmoothly(content: string) {
       break;
     }
 
-    if (/\s/.test(current)) {
-      chunks.push(current);
-      index += 1;
-      continue;
-    }
-
-    if (/[.,!?;:]/.test(current)) {
+    if (/\s/.test(current) || /[.,!?;:]/.test(current)) {
       chunks.push(current);
       index += 1;
       continue;
@@ -378,7 +273,3 @@ function mergeTinyChunks(chunks: string[]) {
 
   return merged;
 }
-
-app.listen(port, () => {
-  console.log(`Express API running at http://127.0.0.1:${port}`);
-});
