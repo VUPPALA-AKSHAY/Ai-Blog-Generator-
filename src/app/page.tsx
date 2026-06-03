@@ -61,6 +61,7 @@ const handwritingPromptDuration = 3200;
 function WritingCursor({ content }: { content: string }) {
   const targetRef = useRef<HTMLSpanElement | null>(null);
   const previousPositionRef = useRef({ x: 0, y: 0 });
+  const previousScrollTopRef = useRef(0);
   const resetMotionRef = useRef<number | null>(null);
   const [movement, setMovement] = useState<"writing" | "returning">("writing");
   const [isVisible, setIsVisible] = useState(false);
@@ -86,14 +87,16 @@ function WritingCursor({ content }: { content: string }) {
   useEffect(() => {
     const target = targetRef.current;
     const card = target?.closest(".output-card");
+    const scrollContainer = target?.closest(".card-content-scroll");
 
-    if (!target || !card) {
+    if (!target || !card || !scrollContainer) {
       return;
     }
 
     const frame = window.requestAnimationFrame(() => {
       const targetRect = target.getBoundingClientRect();
       const cardRect = card.getBoundingClientRect();
+      const scrollRect = scrollContainer.getBoundingClientRect();
       const nextPosition = {
         x: targetRect.left - cardRect.left - 1,
         y: targetRect.top - cardRect.top + targetRect.height - 14
@@ -105,6 +108,23 @@ function WritingCursor({ content }: { content: string }) {
       x.set(nextPosition.x);
       y.set(nextPosition.y);
       setIsVisible(content.length > 0);
+
+      const visibleBottom = scrollRect.bottom - 28;
+      const isBelowViewport = targetRect.bottom > visibleBottom;
+      const isMovingDown = nextPosition.y >= previousPosition.y;
+
+      if (isBelowViewport && isMovingDown) {
+        const nextScrollTop =
+          scrollContainer.scrollTop + (targetRect.bottom - visibleBottom) + 18;
+
+        if (nextScrollTop > previousScrollTopRef.current) {
+          scrollContainer.scrollTo({
+            top: nextScrollTop,
+            behavior: "smooth"
+          });
+          previousScrollTopRef.current = nextScrollTop;
+        }
+      }
 
       if (movedToNextLine && content.length > 0) {
         setMovement("returning");
