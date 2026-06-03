@@ -1,34 +1,29 @@
-# AI Content Generator
 
-A pastel-themed AI content generator built with Next.js and Vercel API routes.
+
+## AI Content Generator
+
+Generate high-quality content instantly with AI.
+
+AI Content Generator is a modern web application that helps creators, marketers, bloggers, and businesses generate multiple content variations from a single prompt. Whether you need blog ideas, product descriptions, social media captions, marketing copy, or creative content, the platform generates six unique content cards tailored to your input.
 
 ## Features
+-Blog idea generation
+-Product description generation
+-Social media caption generation
+-Marketing copy creation
+-Multiple content variations per prompt
 
-- AI-generated multi-card content results
-- Fixed-size scrollable result cards
-- Copy-to-clipboard actions
-- Responsive UI with soft gradient styling
-- Frontend and backend deploy together on Vercel
+## How It Works
+Enter a topic, keyword, product, or idea.
+Submit your prompt.
+The AI analyzes your input.
+Six unique content variations are generated.
+Browse, copy, and use the content instantly.
 
-## Run locally
+Vercel link:
+https://ai-blog-generator-ochre.vercel.app/
 
+Use this command to download the project:
 ```bash
-npm install
-npm run dev
+git clone https://github.com/VUPPALA-AKSHAY/Ai-Blog-Generator-.git
 ```
-
-## Environment variables
-
-Create `.env.local` from `.env.example` and set:
-
-```bash
-AI_PROVIDER=cerebras
-CEREBRAS_API_KEY=your_key_here
-FRENIX_API_KEY=your_key_here
-```
-
-## Deploy to Vercel
-
-1. Import this GitHub repo into Vercel.
-2. Add the environment variables from `.env.example`.
-3. Deploy the project as a single Next.js app.
